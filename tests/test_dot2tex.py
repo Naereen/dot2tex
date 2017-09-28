@@ -76,20 +76,20 @@ digraph SSA
 class PGF118CompatibilityTest(unittest.TestCase):
     def test_pgf118option(self):
         source = dot2tex.dot2tex(testgraph, debug=True, pgf118=True)
-        self.failUnless(source.find("\usepackage{pgflibrarysnakes}") >= 0)
-        self.failIf(source.find("\usetikzlibrary") >= 0)
+        self.failUnless(source.find("\\" + "usepackage{pgflibrarysnakes}") >= 0)
+        self.failIf(source.find("\\" + "usetikzlibrary") >= 0)
         self.failIf(source.find("line join=bevel") >= 0)
 
     def test_tikz118option(self):
         source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', pgf118=True)
-        self.failUnless(source.find("\usepackage{pgflibrarysnakes}") >= 0)
-        self.failIf(source.find("\usetikzlibrary") >= 0)
+        self.failUnless(source.find("\\" + "usepackage{pgflibrarysnakes}") >= 0)
+        self.failIf(source.find("\\" + "usetikzlibrary") >= 0)
         self.failIf(source.find("line join=bevel") >= 0)
 
     def test_nopgf118option(self):
         source = dot2tex.dot2tex(testgraph, debug=True, pgf118=False)
-        self.failIf(source.find("\usepackage{pgflibrarysnakes}") >= 0)
-        self.failUnless(source.find("\usetikzlibrary") >= 0)
+        self.failIf(source.find("\\" + "usepackage{pgflibrarysnakes}") >= 0)
+        self.failUnless(source.find("\\" + "usetikzlibrary") >= 0)
         self.failUnless(source.find("line join=bevel") >= 0)
 
 
@@ -163,7 +163,7 @@ class MultipleStatements(unittest.TestCase):
 class TestPositionsOutputFormat(unittest.TestCase):
     # http://code.google.com/p/dot2tex/issues/detail?id=20
     def test_floating_point_coordinates(self):
-        testxdotgraph = """
+        testxdotgraph = r"""
         digraph G {
             node [label="\N"];
             graph [bb="0,0,127.21,49.639",
@@ -396,19 +396,19 @@ class PGF210CompatibilityTest(unittest.TestCase):
     def test_pgf210option(self):
         source = dot2tex.dot2tex(testgraph, debug=True, pgf210=True)
         self.failUnless(source.find("dot2tex template for PGF 2.10") >= 0)
-        # self.failIf(source.find("\usetikzlibrary") >= 0)
+        # self.failIf(source.find("\\" + "usetikzlibrary") >= 0)
         # self.failIf(source.find("line join=bevel") >= 0)
 
     def test_tikz210option(self):
         source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', pgf210=True)
         self.failUnless(source.find("dot2tex template for PGF 2.10") >= 0)
-        # self.failIf(source.find("\usetikzlibrary") >= 0)
+        # self.failIf(source.find("\\" + "usetikzlibrary") >= 0)
         # self.failIf(source.find("line join=bevel") >= 0)
         #
         # def test_nopgf210option(self):
         # source = dot2tex.dot2tex(testgraph, debug=True, pgf210=False)
-        # self.failIf(source.find("\usepackage{pgflibrarysnakes}") >= 0)
-        #     self.failUnless(source.find("\usetikzlibrary") >= 0)
+        # self.failIf(source.find("\\" + "usepackage{pgflibrarysnakes}") >= 0)
+        #     self.failUnless(source.find("\\" + "usetikzlibrary") >= 0)
         #     self.failUnless(source.find("line join=bevel") >= 0)
 
 
@@ -517,7 +517,7 @@ class Issue23Tests(unittest.TestCase):
             {
               d2tdocpreamble = "
               % My preamble
-              \usepackage{amssymb}";
+              \\usepackage{amssymb}";
               {
                 A -> B -> C;
               }
@@ -530,14 +530,14 @@ class Issue23Tests(unittest.TestCase):
         test_graph = """
         digraph
             {
-              d2tdocpreamble = "\usepackage{amssymb}  \usetikzlibrary{arrows, automata}";
+              d2tdocpreamble = \\usepackage{amssymb}  \\usetikzlibrary{arrows, automata}";
               {
                 A -> B -> C;
               }
             }
         """
         code = dot2tex.dot2tex(test_graph, format="tikz")
-        self.assertTrue(r"\usetikzlibrary{arrows, automata}" in code)
+        self.assertTrue("\\" + "usetikzlibrary{arrows, automata}" in code)
 
 
 if __name__ == '__main__':

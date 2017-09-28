@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Convert graphviz graphs to LaTeX-friendly formats
 
@@ -29,20 +30,38 @@ Copyright (c) 2006-2016, Kjell Magne Fauske
 # IN THE SOFTWARE.
 
 __author__ = 'Kjell Magne Fauske'
-__version__ = '2.10.dev'
+__version__ = '2.11.dev'
 __license__ = 'MIT'
 
-from itertools import izip
+
 import argparse
 import os.path as path
 import sys, tempfile, os, re
 import logging
 import warnings
 
-import dotparsing
+try:
+    import dotparsing
+except ImportError:
+    from . import dotparsing
 
 # Silence DeprecationWarnings about os.popen3 in Python 2.6
 warnings.filterwarnings('ignore', category=DeprecationWarning, message=r'os\.popen3')
+
+# Fix from os.popen and os.popen3 to subprocess.Popen
+try:
+    # https://docs.python.org/3//library/subprocess.html#subprocess-replacements
+    from subprocess import Popen, PIPE
+    def os_popen(command):
+        # pipe = os.popen("cmd", 'r', bufsize) ==>
+        return Popen(command, shell=True, stdout=PIPE).stdout
+    def os_popen3(command, mode):
+        # (child_stdin, child_stdout, child_stderr) = os.popen3("cmd", mode, bufsize) ==>
+        p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
+        return (p.stdin, p.stdout, p.stderr)
+except ImportError:
+    os_popen = os.popen
+    os_popen3 = os.popen3
 
 # initialize logging module
 log = logging.getLogger("dot2tex")
@@ -79,10 +98,9 @@ INCH2BP = 72.0
 SPECIAL_CHARS = ['$', '\\', '%', '_', '#', '{', r'}', '^', '&']
 SPECIAL_CHARS_REPLACE = [r'\$', r'$\backslash$', r'\%', r'\_', r'\#',
                          r'\{', r'\}', r'\^{}', r'\&']
-charmap = dict(zip(SPECIAL_CHARS, SPECIAL_CHARS_REPLACE))
+charmap = dict(list(zip(SPECIAL_CHARS, SPECIAL_CHARS_REPLACE)))
 
-helpmsg = """\
-Failed to parse the input data. Is it a valid dot file?
+helpmsg = """Failed to parse the input data. Is it a valid dot file?
 Try to input xdot data directly. Example:
     dot -Txdot file.dot | dot2tex > file.tex
 
@@ -136,13 +154,13 @@ def nsplit(seq, n=2):
     >>> nsplit('aabbcc',n=4)
     [('a', 'a', 'b', 'b')]
     """
-    return [xy for xy in izip(*[iter(seq)] * n)]
+    return [xy for xy in zip(*[iter(seq)] * n)]
 
 
 def chunks(s, cl):
     """Split a string or sequence into pieces of length cl and return an iterator
     """
-    for i in xrange(0, len(s), cl):
+    for i in range(0, len(s), cl):
         yield s[i:i + cl]
 
 
@@ -188,18 +206,17 @@ def create_xdot(dotdata, prog='dot', options=''):
         return None
     if not prog in progs:
         log.error('Invalid prog=%s', prog)
-        raise NameError('The %s program is not recognized. Valid values are %s' % (prog, progs.keys()))
+        raise NameError('The %s program is not recognized. Valid values are %s' % (prog, list(progs.keys())))
 
     tmp_fd, tmp_name = tempfile.mkstemp()
     os.close(tmp_fd)
-    f = open(tmp_name, 'w')
-    f.write(dotdata)
-    f.close()
+    with open(tmp_name, 'w') as f:
+        f.write(dotdata)
     output_format = 'xdot'
     progpath = '"%s"' % progs[prog].strip()
     cmd = progpath + ' -T' + output_format + ' ' + options + ' ' + tmp_name
     log.debug('Creating xdot data with: %s', cmd)
-    stdin, stdout, stderr = os.popen3(cmd, 't')
+    stdin, stdout, stderr = os_popen3(cmd, 't')
     stdin.close()
     try:
         data = stdout.read()
@@ -249,7 +266,7 @@ def parse_drawstring(drawstring):
         tokens = s.split()[0:4]
         if not tokens:
             return None
-        points = map(float, tokens)
+        points = list(map(float, tokens))
         didx = sum(map(len, tokens)) + len(points) + 1
         return didx, (c, points[0], points[1], points[2], points[3])
 
@@ -262,7 +279,7 @@ def parse_drawstring(drawstring):
         # b n x1 y1 ... xn yn  Filled B-spline using the given n control points
         tokens = s.split()
         n = int(tokens[0])
-        points = map(float, tokens[1:n * 2 + 1])
+        points = list(map(float, tokens[1:n * 2 + 1]))
         didx = sum(map(len, tokens[1:n * 2 + 1])) + n * 2 + 2
         npoints = nsplit(points, 2)
         return didx, (c, npoints)
@@ -408,7 +425,8 @@ class DotConvBase(object):
 
     def load_template(self, templatefile):
         try:
-            self.template = open(templatefile).read()
+            with open(templatefile) as f:
+                self.template = f.read()
         except:
             pass
 
@@ -895,7 +913,7 @@ class DotConvBase(object):
     def output(self):
         self.init_template_vars()
         template = self.clean_template(self.template)
-        code = replace_tags(template, self.templatevars.keys(),
+        code = replace_tags(template, list(self.templatevars.keys()),
                             self.templatevars)
         return code
 
@@ -908,14 +926,14 @@ class DotConvBase(object):
 
         # log.warning('text %s %s',text,str(drawobj))
 
-        if text is None or text.strip() == '\N':
+        if text is None or text.strip() == r'\N':
             if not isinstance(drawobj, dotparsing.DotEdge):
                 text = getattr(drawobj, 'name', None) or \
                        getattr(drawobj, 'graph_name', '')
                 text = text.replace("\\\\", "\\")
             else:
                 text = ''
-        elif text.strip() == '\N':
+        elif text.strip() == r'\N':
             text = ''
         else:
             text = text.replace("\\\\", "\\")
@@ -969,7 +987,7 @@ class DotConvBase(object):
         # setDotAttr(self.maingraph)
         self.init_template_vars()
         template = self.clean_template(self.template)
-        template = replace_tags(template, self.templatevars.keys(),
+        template = replace_tags(template, list(self.templatevars.keys()),
                                 self.templatevars)
         pp = TeXDimProc(template, self.options)
         usednodes = {}
@@ -1049,7 +1067,7 @@ To see what happened, run dot2tex with the --debug option.
             log.error(errormsg)
             sys.exit(1)
 
-        for name, item in usednodes.items():
+        for name, item in list(usednodes.items()):
             if not item.attr.get('texlbl'):
                 continue
             node = item
@@ -1096,7 +1114,7 @@ To see what happened, run dot2tex with the --debug option.
             node.attr['fixedsize'] = 'true'
             self.main_graph.allitems.append(node)
 
-        for name, item in usededges.items():
+        for name, item in list(usededges.items()):
             edge = item
             hp, dp, wt = pp.texdims[name]
             xmargin, ymargin = self.get_margins(edge)
@@ -1112,7 +1130,7 @@ To see what happened, run dot2tex with the --debug option.
                 hp, dp, wt = pp.texdims[name + "headlabel"]
                 edge.attr['headlabel'] = labelcode % ((wt + 2 * xmargin) * 72, (hp + dp + 2 * ymargin) * 72)
 
-        for name, item in usedgraphs.items():
+        for name, item in list(usedgraphs.items()):
             graph = item
             hp, dp, wt = pp.texdims[name]
             xmargin, ymargin = self.get_margins(graph)
@@ -1868,7 +1886,7 @@ class Dot2PGFConv(DotConvBase):
     def init_template_vars(self):
         DotConvBase.init_template_vars(self)
         if self.options.get('crop'):
-            cropcode = "\usepackage[active,tightpage]{preview}\n" + \
+            cropcode = "\\usepackage[active,tightpage]{preview}\n" + \
                        "\PreviewEnvironment{tikzpicture}\n" + \
                        "\setlength\PreviewBorder{%s}" % self.options.get('margin', '0pt')
         else:
@@ -2568,9 +2586,9 @@ class PositionsDotConv(Dot2PGFConv):
             pos = getattr(node, 'pos', None)
             if pos:
                 try:
-                    positions[node.name] = map(int, pos.split(','))
+                    positions[node.name] = list(map(int, pos.split(',')))
                 except ValueError:
-                    positions[node.name] = map(float, pos.split(','))
+                    positions[node.name] = list(map(float, pos.split(',')))
         return positions
 
 
@@ -2617,19 +2635,19 @@ class TeXDimProc:
             log.warning('No labels to preprocess')
             return True
         self.tempdir = tempfile.mkdtemp(prefix='dot2tex')
-        log.debug('Creating temporary directroy %s' % self.tempdir)
+        log.debug('Creating temporary directory %s' % self.tempdir)
         self.tempfilename = os.path.join(self.tempdir, 'dot2tex.tex')
         log.debug('Creating temporary file %s' % self.tempfilename)
-        f = open(self.tempfilename, 'w')
         s = ""
         for n in self.snippets_code:
             s += "\\begin{preview}%\n"
             s += n.strip() + "%\n"
             s += "\end{preview}%\n"
 
-        f.write(self.template.replace('<<preproccode>>', s))
-        f.close()
-        s = open(self.tempfilename, 'r').read()
+        with open(self.tempfilename, 'w') as f:
+            f.write(self.template.replace('<<preproccode>>', s))
+        with open(self.tempfilename, 'r') as f:
+            s = f.read()
         log.debug('Code written to %s\n' % self.tempfilename + s)
         self.parse_log_file()
         shutil.rmtree(self.tempdir)
@@ -2649,14 +2667,13 @@ class TeXDimProc:
         else:
             command = 'latex -interaction=nonstopmode %s' % self.tempfilename
         log.debug('Running command: %s' % command)
-        sres = os.popen(command)
+        sres = os_popen(command)
 
         errcode = sres.close()
         log.debug('errcode: %s' % errcode)
-        f = open(logfilename, 'r')
-        logdata = f.read()
+        with open(logfilename, 'r') as f:
+            logdata = f.read()
         log.debug('Logfile from LaTeX run: \n' + logdata)
-        f.close()
         os.chdir(tmpdir)
 
         texdimdata = self.dimext_re.findall(logdata)
@@ -2669,7 +2686,7 @@ class TeXDimProc:
         c = 1.0 / 4736286
         self.texdims = {}
         self.texdimlist = [(float(i[1]) * c, float(i[2]) * c, float(i[3]) * c) for i in texdimdata]
-        self.texdims = dict(zip(self.snippets_id, self.texdimlist))
+        self.texdims = dict(list(zip(self.snippets_id, self.texdimlist)))
 
 
 def create_options_parser():
@@ -2849,11 +2866,12 @@ def _runtests():
 
 
 def print_version_info():
-    print "Dot2tex version % s" % __version__
+    print("Dot2tex version % s" % __version__)
 
 
 def load_dot_file(filename):
-    dotdata = open(filename, 'rU').readlines()
+    with open(filename, 'r') as f:
+        dotdata = f.readlines()
     log.info('Data read from %s' % filename)
     return dotdata
 
@@ -2970,7 +2988,7 @@ def main(run_as_module=False, dotdata=None, options=None):
     dotdata = "".join(lines)
 
     if options.cache and not run_as_module:
-        import hashlib, cPickle
+        import hashlib, pickle
 
         if options.inputfile is not None and options.outputfile:
             log.info('Caching enabled')
@@ -2986,24 +3004,22 @@ def main(run_as_module=False, dotdata=None, options=None):
             hashes = {}
             if path.exists(hashfilename):
                 log.info('Loading hash file %s', hashfilename)
-                f = open(hashfilename, 'r')
-                try:
-                    hashes = cPickle.load(f)
-                except:
-                    log.exception('Failed to load hashfile')
-                f.close()
+                with open(hashfilename, 'r') as f:
+                    try:
+                        hashes = pickle.load(f)
+                    except:
+                        log.exception('Failed to load hashfile')
             if hashes.get(key) == inputhash and path.exists(options.outputfile):
                 log.info('Input has not changed. Will not convert input file')
                 sys.exit(0)
             else:
                 log.info('Hash or output file not found. Converting file')
                 hashes[key] = inputhash
-                f = open(hashfilename, 'w')
-                try:
-                    cPickle.dump(hashes, f)
-                except:
-                    log.warning('Failed to write hashfile')
-                f.close()
+                with open(hashfilename, 'w') as f:
+                    try:
+                        pickle.dump(hashes, f)
+                    except:
+                        log.warning('Failed to write hashfile')
         else:
             log.warning('You need to specify an input and output file for caching to work')
 
@@ -3056,13 +3072,12 @@ def main(run_as_module=False, dotdata=None, options=None):
             s = conv.convert(s)
             log.debug('Output after preprocessing:\n%s', s)
         if options.outputfile:
-            f = open(options.outputfile, 'w')
-            f.write(s)
-            f.close()
+            with open(options.outputfile, 'w') as f:
+                f.write(s)
         else:
             if not run_as_module:
-                print s
-    except dotparsing.ParseException, err:
+                print(s)
+    except dotparsing.ParseException as err:
         errmsg = "Parse error:\n%s\n" % err.line + " " * (err.column - 1) + "^\n" + str(err)
         log.error(errmsg)
         if options.debug:

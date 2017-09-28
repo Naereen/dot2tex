@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Convert graphviz graphs to LaTeX-friendly formats
 
@@ -7,6 +8,7 @@ to formats for use with LaTeX.
 Copyright (c) 2006-2014, Kjell Magne Fauske
 
 """
+from __future__ import absolute_import
 
 # Copyright (c) 2006-2014, Kjell Magne Fauske
 #
@@ -29,11 +31,16 @@ Copyright (c) 2006-2014, Kjell Magne Fauske
 # IN THE SOFTWARE.
 
 __author__ = 'Kjell Magne Fauske'
+__version__ = '2.11.dev'
 __license__ = 'MIT'
 
 import dot2tex as d2t
 
-__version__ = d2t.__version__
+try:
+    main = d2t.main
+except AttributeError:
+    from dot2tex import dot2tex as d2t
+    main = d2t.main
 
 from pyparsing import ParseException
 import logging
@@ -59,7 +66,3 @@ def dot2tex(dotsource, **kwargs):
 
     """
     return d2t.convert_graph(dotsource, **kwargs)
-
-  
-
-
