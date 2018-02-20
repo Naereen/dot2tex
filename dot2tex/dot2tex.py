@@ -40,10 +40,21 @@ import sys, tempfile, os, re
 import logging
 import warnings
 
+# if __package__ is None:
+sys.path.insert(0, path.dirname( path.abspath(__file__) ) )
+sys.path.insert(0, path.dirname( path.dirname( path.abspath(__file__) ) ) )
+sys.path.insert(0, '..' )
+sys.path.insert(0, path.join( os.getcwd(), '..' ) )
 try:
-    import dotparsing
+    from dotparsing import dotparsing
 except ImportError:
-    from . import dotparsing
+    try:
+        import dotparsing
+    except ImportError:
+        try:
+            from dot2tex import dotparsing
+        except ImportError:
+            from . import dotparsing
 
 # Silence DeprecationWarnings about os.popen3 in Python 2.6
 warnings.filterwarnings('ignore', category=DeprecationWarning, message=r'os\.popen3')
@@ -226,11 +237,11 @@ def create_xdot(dotdata, prog='dot', options=''):
     try:
         error_data = stderr.read()
         if error_data:
-            if 'Error:' in error_data:
+            if b'Error:' in error_data:
                 log.error("Graphviz returned with the following message: %s", error_data)
             else:
                 # Graphviz raises a lot of warnings about too small labels,
-                # we therefore log them using log.debug to "hide" them 
+                # we therefore log them using log.debug to "hide" them
                 log.debug('Graphviz STDERR %s', error_data)
     finally:
         stderr.close()
@@ -2491,7 +2502,7 @@ class Dot2PSTricksNConv(Dot2PSTricksConv):
             x, y = pos.split(',')
             label = self.get_label(node)
             pos = "%sbp,%sbp" % (smart_float(x), smart_float(y))
-            # TODO style 
+            # TODO style
 
             sn = ""
             sn += self.output_node_comment(node)
@@ -2576,7 +2587,7 @@ class Dot2PSTricksNConv(Dot2PSTricksConv):
 
 class PositionsDotConv(Dot2PGFConv):
     """A converter that returns a dictionary with node positions
-    
+
     Returns a dictionary with node name as key and a (x, y) tuple as value.
     """
 
