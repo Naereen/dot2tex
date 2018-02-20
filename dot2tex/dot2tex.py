@@ -39,6 +39,7 @@ import os.path as path
 import sys, tempfile, os, re
 import logging
 import warnings
+import codecs
 
 # if __package__ is None:
 sys.path.insert(0, path.dirname( path.abspath(__file__) ) )
@@ -221,8 +222,13 @@ def create_xdot(dotdata, prog='dot', options=''):
 
     tmp_fd, tmp_name = tempfile.mkstemp()
     os.close(tmp_fd)
-    with open(tmp_name, 'w') as f:
-        f.write(dotdata)
+    try:
+        with open(tmp_name, 'w', encoding='utf8') as f:
+            f.write(dotdata)
+    except TypeError:
+        local_open = codecs.open
+        with local_open(tmp_name, 'w', encoding='utf8') as f:
+            f.write(dotdata)
     output_format = 'xdot'
     progpath = '"%s"' % progs[prog].strip()
     cmd = progpath + ' -T' + output_format + ' ' + options + ' ' + tmp_name
@@ -262,7 +268,11 @@ def parse_dot_data(dotdata):
         raise
     finally:
         del parser
-    log.debug('Parsed graph:\n%s', str(graph))
+    try:
+        log.debug('Parsed graph:\n%s', str(graph))
+    except UnicodeEncodeError:
+        local_str = lambda x: u"%s" % x
+        log.debug('Parsed graph:\n%s', local_str(graph))
     return graph
 
 
@@ -803,7 +813,11 @@ class DotConvBase(object):
                     sys.exit(1)
                 log.debug('xdotdata:\n' + str(tmpdata))
                 main_graph = parse_dot_data(tmpdata)
-                log.debug('dotparsing graph:\n' + str(main_graph))
+                try:
+                    log.debug('dotparsing graph:\n' + str(main_graph))
+                except UnicodeEncodeError:
+                    local_str = lambda x: u"%s" % x
+                    log.debug('dotparsing graph:\n' + local_str(main_graph))
             else:
                 # old version
                 pass
@@ -2661,8 +2675,8 @@ class TeXDimProc:
             s = f.read()
         log.debug('Code written to %s\n' % self.tempfilename + s)
         self.parse_log_file()
-        shutil.rmtree(self.tempdir)
-        log.debug('Temporary directory and files deleted')
+        # shutil.rmtree(self.tempdir)
+        # log.debug('Temporary directory and files deleted')
         if self.texdims:
             return True
         else:
@@ -2682,10 +2696,14 @@ class TeXDimProc:
 
         errcode = sres.close()
         log.debug('errcode: %s' % errcode)
-        with open(logfilename, 'r') as f:
-            logdata = f.read()
-        log.debug('Logfile from LaTeX run: \n' + logdata)
-        os.chdir(tmpdir)
+        try:
+            with open(logfilename, 'r') as f:
+                logdata = f.read()
+            log.debug('Logfile from LaTeX run: \n' + logdata)
+            os.chdir(tmpdir)
+        except IOError:
+            log.debug('Unable to open log file %s' % logfilename)
+            logdata = ""
 
         texdimdata = self.dimext_re.findall(logdata)
         log.debug('Texdimdata: ' + str(texdimdata))
@@ -2934,7 +2952,10 @@ def main(run_as_module=False, dotdata=None, options=None):
              sys.version_info, platform.platform(),
              dotparsing.pyparsing_version)
     log.info('dot2tex called with: %s' % sys.argv)
-    log.info('Program started in %s' % os.getcwd())
+    try:
+        log.info('Program started in %s' % os.getcwd())
+    except OSError:
+        log.info('Program started in unknown directory')
     if not run_as_module:
         if options.printversion:
             print_version_info()

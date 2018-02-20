@@ -39,14 +39,24 @@ class InterfaceTest(unittest.TestCase):
 
 class UnicodeTest(unittest.TestCase):
     def test_russian(self):
-        testgraph = """digraph {AAA [label="ЯЯЯ"];}"""
-        source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
-        self.failUnless(source.find("{ЯЯЯ}") > 0, "Found %s" % source)
+        try:
+            testgraph = """digraph {AAA [label="ЯЯЯ"];}"""
+            source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
+            self.failUnless(source.find("{ЯЯЯ}") > 0, "Found %s" % source)
+        except UnicodeDecodeError:
+            testgraph = u"""digraph {AAA [label="ЯЯЯ"];}"""
+            source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
+            self.failUnless(source.find(u"{ЯЯЯ}") > 0, "Found %s" % source)
 
     def test_russian2(self):
-        testgraph = """digraph {AAA [label=aaЯЯЯ];}"""
-        source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
-        self.failUnless(source.find("{aaЯЯЯ}") > 0, "Found %s" % source)
+        try:
+            testgraph = """digraph {AAA [label=aaЯЯЯ];}"""
+            source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
+            self.failUnless(source.find("{aaЯЯЯ}") > 0, "Found %s" % source)
+        except UnicodeDecodeError:
+            testgraph = u"""digraph {AAA [label=aaЯЯЯ];}"""
+            source = dot2tex.dot2tex(testgraph, debug=True, format='tikz', codeonly=True)
+            self.failUnless(source.find(u"{aaЯЯЯ}") > 0, "Found %s" % source)
 
 
 class D2TOptionsTest(unittest.TestCase):
@@ -115,7 +125,7 @@ class BuggyGraphTests(unittest.TestCase):
 
 
 class NeedsQuotesTests(unittest.TestCase):
-    # http://code.google.com/p/dot2tex/issues/detail?id=17    
+    # http://code.google.com/p/dot2tex/issues/detail?id=17
     def test_numeral(self):
         from dot2tex import dotparsing
 
@@ -127,7 +137,7 @@ class NeedsQuotesTests(unittest.TestCase):
         self.failUnless(dotparsing.needs_quotes('.12') == False)
         self.failUnless(dotparsing.needs_quotes('-.1') == False)
 
-    # http://code.google.com/p/dot2tex/issues/detail?id=17    
+    # http://code.google.com/p/dot2tex/issues/detail?id=17
     def test_not_numeral_in_label(self):
         testgraph = """
         digraph { a[label="1.2.3.4"] ; b }
@@ -237,14 +247,14 @@ ABD: EveryShipout initializing macros
 Preview: Fontsize 10pt
 ! Preview: Snippet 1 started.
 <-><->
-      
+
 l.18 \begin{preview}
                     %
 Not a real error.
 
 ! Preview: Snippet 1 ended.(817330+0x1077278).
 <-><->
-      
+
 l.20 \end{preview}
                   %
 Not a real error.
@@ -252,14 +262,14 @@ Not a real error.
 [1]
 ! Preview: Snippet 2 started.
 <-><->
-      
+
 l.21 \begin{preview}
                     %
 Not a real error.
 
 ! Preview: Snippet 2 ended.(817330+0x1077278).
 <-><->
-      
+
 l.23 \end{preview}
                   %
 Not a real error.
@@ -267,19 +277,19 @@ Not a real error.
 [2]
 ! Preview: Snippet 3 started.
 <-><->
-      
+
 l.24 \begin{preview}
                     %
 Not a real error.
 
 ! Preview: Snippet 3 ended.(817330+0x1077278).
 <-><->
-      
+
 l.26 \end{preview}
                   %
 Not a real error.
 
-[3] ) 
+[3] )
 Here is how much of TeX's memory you used:
 """
         dimext_re = re.compile(dimext, re.MULTILINE | re.VERBOSE)
@@ -295,7 +305,7 @@ Here is how much of TeX's memory you used:
 Preview: Fontsize 10pt
 /tmp/dot2texS8qrUI/dot2tex.tex:18: Preview: Snippet 1 started.
 <-><->
-      
+
 l.18 \begin{preview}
                     %
 Not a real error.
@@ -303,7 +313,7 @@ Not a real error.
 /tmp/dot2texS8qrUI/dot2tex.tex:20: Preview: Snippet 1 ended.(817330+0x1077278).
 
 <-><->
-      
+
 l.20 \end{preview}
                   %
 Not a real error.
@@ -311,7 +321,7 @@ Not a real error.
 [1]
 /tmp/dot2texS8qrUI/dot2tex.tex:21: Preview: Snippet 2 started.
 <-><->
-      
+
 l.21 \begin{preview}
                     %
 Not a real error.
@@ -319,7 +329,7 @@ Not a real error.
 /tmp/dot2texS8qrUI/dot2tex.tex:23: Preview: Snippet 2 ended.(817330+0x1077278).
 
 <-><->
-      
+
 l.23 \end{preview}
                   %
 Not a real error.
@@ -327,7 +337,7 @@ Not a real error.
 [2]
 /tmp/dot2texS8qrUI/dot2tex.tex:24: Preview: Snippet 3 started.
 <-><->
-      
+
 l.24 \begin{preview}
                     %
 Not a real error.
@@ -335,12 +345,12 @@ Not a real error.
 /tmp/dot2texS8qrUI/dot2tex.tex:26: Preview: Snippet 3 ended.(817330+0x1077278).
 
 <-><->
-      
+
 l.26 \end{preview}
                   %
 Not a real error.
 
-[3] ) 
+[3] )
 Here is how much of TeX's memory you used:
 """
         dimext_re = re.compile(dimext, re.MULTILINE | re.VERBOSE)
