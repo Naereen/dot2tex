@@ -66,7 +66,9 @@ try:
     from subprocess import Popen, PIPE
     def os_popen(command):
         # pipe = os.popen("cmd", 'r', bufsize) ==>
-        return Popen(command, shell=True, stdout=PIPE).stdout
+        proc = Popen(command, shell=True, stdout=PIPE)
+        proc.wait()
+        return proc.stdout
     def os_popen3(command, mode):
         # (child_stdin, child_stdout, child_stderr) = os.popen3("cmd", mode, bufsize) ==>
         p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
